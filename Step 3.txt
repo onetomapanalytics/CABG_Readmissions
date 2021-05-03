@@ -1,0 +1,72 @@
+*Third  Step involves reading the file from step 2 and then coding hospital readmissions quartiles.
+
+*this step was repeated for all states and all yearly files
+
+use "file path
+
+///// Find total READMITs - 2009
+
+
+tab READMIT2 
+replace READMIT2 = 0 if READMIT2 == 3
+replace READMIT2 = 3 if READMIT2 == 1
+replace READMIT2 = 1 if READMIT2 == 2
+replace READMIT2 = 2 if READMIT2 == 3
+
+tab READMIT2 
+
+tab READMIT 
+
+tab PR1num if READMIT2 == 1,sort
+
+tab PR1 if READMIT2 == 1, sort
+
+
+tab PR1num if READMIT2 == 0,sort
+
+
+sort AHAID YEAR
+
+tab AHAID READMIT 
+
+///// Create Readmit Rate 
+
+by AHAID: gen idx_ahaid = _n == 1
+
+by AHAID: gen idx2_ahaid = _n 
+
+
+*by AHAID: gen ADMTOT_n = _n == 1
+*gen ADMTOT_2 = ADMTOT if ADMTOT_n == 1
+
+bysort AHAID: egen total_readmit_by_AHAID = sum(READMIT)
+
+gen ReadmitRate = total_readmit_by_AHAID / ADMTOT if idx_ahaid == 1
+
+//sort ReadmitRate
+
+///// Calculate Quartiles
+*Breaking the cost into three terciles and looking at patients which belong to the top 33% tercile of cost
+
+egen ReadmitRate_Quartiles = cut(ReadmitRate), group(4)
+
+table ReadmitRate_Quartiles , contents(n ReadmitRate min ReadmitRate max ReadmitRate)
+
+
+gen ReadmitRate_Q1 = ReadmitRate_Quartiles == 0
+gen ReadmitRate_Q4 = ReadmitRate_Quartiles == 3
+
+tab ReadmitRate_Q1 
+tab ReadmitRate_Q4 
+
+
+foreach v of var ReadmitRate_Quartiles{
+replace ReadmitRate_Quartiles = ReadmitRate_Quartiles[_n-1] if `v'[_n-1] != . & idx_ahaid == 0 
+}
+
+gen ReadmitRate_Quartiles_2 = ReadmitRate_Quartiles if ReadmitRate_Quartiles == 0 | ReadmitRate_Quartiles == 3
+
+save "file path"
+
+After this step, all the individual yearly files were stacked to form a master file containing all years and all states. 
+append function in stata was used 

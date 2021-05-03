@@ -1,0 +1,67 @@
+*Second Step involves reading the file from step 1 and then coding for 30 day readmission.
+
+*this step was repeated for all states and all yearly files
+
+use "file path
+
+****CODING FOR READMISSION VARIABLE*****
+
+* order events by date, check that data is fully sorted
+isid VisitLink DaysToEvent KEY, sort
+
+* the first obs is always an index
+by VisitLink: gen idx = _n == 1
+
+by VisitLink: gen idx_2 = _n 
+
+gen PR1num = real(PR1)
+
+by VisitLink : gen idx_livpan = 1 if (PR1num==3610 & idx ==1) | (PR1num==3611 & idx ==1) | (PR1num==3612& idx ==1) | (PR1num==3613& idx ==1) | (PR1num==3614 & idx ==1)  | (PR1num==3615& idx ==1) | (PR1num==3616 & idx ==1)| (PR1num==3617 & idx ==1) | (PR1num==3619 & idx ==1) 
+*replace idx_livpan = . if idx_livpan == 0
+tab idx_livpan
+
+
+foreach v of var idx_livpan{
+replace idx_livpan = 0 if `v'[_n-1] == 1 & idx == 0
+}
+
+foreach v of var idx_livpan{
+replace idx_livpan = 0 if `v'[_n-1] == 0 & idx == 0
+}
+
+tab idx_livpan
+
+drop if idx_livpan==.
+****CODING FOR READMISSION VARIABLE*****
+
+*order events by date, check that data is fully sorted
+isid VisitLink DaysToEvent KEY, sort
+
+* the first obs is always an index
+by VisitLink: gen idx_readmit = _n == 1
+
+
+* look for the next index case, i.e. more than 30 days from previous case
+    
+    // carry over daystoevent from previous index case(s)
+  gen idx_days = DaysToEvent * idx_readmit
+   by VisitLink: replace idx_days = idx_days[_n-1] if idx_days == 0
+	
+   gen idx_LOS = LOS * idx_readmit
+   by VisitLink: replace idx_LOS = idx_LOS[_n-1] if idx_LOS == 0
+    
+    // number of days since last index case
+   gen delta = DaysToEvent - idx_days - idx_LOS
+    
+* look for readmission cases, only flag the first after an index case
+gen READMIT = delta >=0 & delta <= 30 
+
+rename idx_livpan idx_CABG
+
+gen READMIT2 = READMIT
+by VisitLink: replace READMIT2 = 2 if idx == 1 & READMIT2[_n+1]==1
+by VisitLink: replace READMIT2 = 3 if idx == 1 & READMIT2==0
+
+drop if READMIT2 == 0
+
+save "file path"
